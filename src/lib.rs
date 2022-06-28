@@ -1,4 +1,8 @@
-use std::iter::zip;
+pub mod serializers;
+pub mod xor;
+
+use serializers::Serialize;
+use xor::Xor;
 
 const BASE_64_ALPHABET: [char; 64] = [
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
@@ -138,87 +142,18 @@ fn test_hex_2_octal() {
     assert_eq!(hex_2_octal("4d1fa"), vec![1, 1, 5, 0, 7, 7, 2]);
 }
 
-fn bin_2_hex(bin: &[u8]) -> String {
-    bin.iter()
-        .rev()
-        .collect::<Vec<_>>()
-        .chunks(4)
-        .map(|chunk| match chunk {
-            [&d, &c, &b, &a] => 8 * a + 4 * b + 2 * c + d,
-            [&d, &c, &b] => 4 * b + 2 * c + d,
-            [&d, &c] => 2 * c + d,
-            [&d] => d,
-            _ => panic!("unexpected chunk size {}", chunk.len()),
-        })
-        .map(decimal_2_hex)
-        .rev()
-        .collect()
-}
-
-#[test]
-fn test_bin_2_hex() {
-    assert_eq!(
-        bin_2_hex(&[1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1]),
-        "1c011"
-    );
-    assert_eq!(
-        bin_2_hex(&[1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1]),
-        "1c011f"
-    );
-}
-
-fn decimal_2_hex(v: u8) -> char {
-    match v {
-        0 => '0',
-        1 => '1',
-        2 => '2',
-        3 => '3',
-        4 => '4',
-        5 => '5',
-        6 => '6',
-        7 => '7',
-        8 => '8',
-        9 => '9',
-        10 => 'a',
-        11 => 'b',
-        12 => 'c',
-        13 => 'd',
-        14 => 'e',
-        15 => 'f',
-        _ => panic!("unexpected decimal {}", v),
-    }
-}
-
-pub fn xor(lhs: &str, rhs: &str) -> String {
-    if lhs.len() != rhs.len() {
-        panic!("xor: lhs and rhs len must be equal");
-    }
-    let bin = zip(hex_2_bin(lhs), hex_2_bin(rhs))
-        .map(|(l, r)| match (l, r) {
-            (0, 0) => 0,
-            (1, 0) => 1,
-            (0, 1) => 1,
-            (1, 1) => 0,
-            _ => panic!("unexpected xor values lhs {} rhs {}", l, r),
-        })
-        .collect::<Vec<_>>();
-    bin_2_hex(&bin)
-}
-
 pub fn set_1_challenge_2() {
-    dbg!(xor(
-        "1c0111001f010100061a024b53535009181c",
-        "686974207468652062756c6c277320657965"
-    ));
+    dbg!(&hex_2_bin("1c0111001f010100061a024b53535009181c")
+        .xor(&hex_2_bin("686974207468652062756c6c277320657965"))
+        .to_hex());
 }
 
 #[test]
 fn test_cryptopals_set_1_challenge_2() {
     assert_eq!(
-        xor(
-            "1c0111001f010100061a024b53535009181c",
-            "686974207468652062756c6c277320657965"
-        ),
+        &hex_2_bin("1c0111001f010100061a024b53535009181c")
+            .xor(&hex_2_bin("686974207468652062756c6c277320657965"))
+            .to_hex(),
         "746865206b696420646f6e277420706c6179"
     );
 }
