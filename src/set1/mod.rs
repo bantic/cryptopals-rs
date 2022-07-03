@@ -114,7 +114,7 @@ fn test_hex_2_bytes() {
 pub fn challenge3() {
     println!("SET 1 CHALLENGE 3");
     if let Some((_score, key, result)) = break_single_byte_xor(INPUT) {
-        println!("key {} -> {}", key, result);
+        println!("score {}, key {} -> {}", _score, key, result);
     } else {
         panic!("could not solve challenge 3");
     }
@@ -144,12 +144,12 @@ pub fn challenge4() {
     let input = include_str!("./data/challenge4.txt");
     for line in input.lines() {
         if let Some((_score, key, result)) = break_single_byte_xor(line) {
-            // if _score < u32::MAX {
-            println!(
-                "line {} -> score {}, key {} -> {}",
-                line, _score, key, result
-            );
-            // }
+            if _score < u32::MAX {
+                println!(
+                    "line {} -> score {}, key {} -> {}",
+                    line, _score, key, result
+                );
+            }
         }
     }
 }
