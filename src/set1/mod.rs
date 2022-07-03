@@ -112,20 +112,44 @@ fn test_hex_2_bytes() {
 }
 
 pub fn challenge3() {
-    let in_bytes = hex_2_bytes(INPUT);
-    let key = (0u8..=255)
-        .min_by_key(|&b| {
-            let b_xor = vec![b; in_bytes.len()];
-            let out_bytes = in_bytes.xor(&b_xor);
-            if let Ok(out_s) = std::str::from_utf8(&out_bytes) {
-                score(out_s)
-            } else {
-                u32::MAX
-            }
+    println!("SET 1 CHALLENGE 3");
+    if let Some((_score, key, result)) = break_single_byte_xor(INPUT) {
+        println!("key {} -> {}", key, result);
+    } else {
+        panic!("could not solve challenge 3");
+    }
+}
+
+fn xor_hex_str_by_byte(s: &str, b: u8) -> Vec<u8> {
+    let in_bytes = hex_2_bytes(s);
+    let b_xor = vec![b; in_bytes.len()];
+    in_bytes.xor(&b_xor)
+}
+
+fn break_single_byte_xor(s: &str) -> Option<(u32, u8, String)> {
+    (0u8..=255)
+        .map(|b| {
+            let out_bytes = xor_hex_str_by_byte(s, b);
+            let (_score, out_s) = match std::str::from_utf8(&out_bytes) {
+                Ok(v) => (score(v), v),
+                _ => (u32::MAX, ""),
+            };
+            (_score, b, out_s.to_string())
         })
-        .unwrap();
-    println!("key: {}", key);
-    let out_bytes = in_bytes.xor(&vec![key; in_bytes.len()]);
-    let result = std::str::from_utf8(&out_bytes).unwrap();
-    println!("result: {}", result);
+        .min_by_key(|(_score, _, _)| *_score)
+}
+
+pub fn challenge4() {
+    println!("SET 1 CHALLENGE 4");
+    let input = include_str!("./data/challenge4.txt");
+    for line in input.lines() {
+        if let Some((_score, key, result)) = break_single_byte_xor(line) {
+            // if _score < u32::MAX {
+            println!(
+                "line {} -> score {}, key {} -> {}",
+                line, _score, key, result
+            );
+            // }
+        }
+    }
 }
