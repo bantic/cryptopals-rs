@@ -1,5 +1,4 @@
-use crate::BASE_64_ALPHABET;
-use crate::BASE_64_PAD;
+use crate::base64;
 
 pub trait Serialize {
     fn to_hex(&self) -> String;
@@ -51,7 +50,7 @@ impl Serialize for [u8] {
         let mut chars: Vec<char> = self
             .chunks(3)
             .flat_map(chunk_to_base64_digits)
-            .map(|digit| BASE_64_ALPHABET[digit as usize])
+            .map(|digit| base64::ALPHABET[digit as usize])
             .collect();
         match self.len() % 3 {
             0 => (),
@@ -59,13 +58,13 @@ impl Serialize for [u8] {
                 // final 2 chars will be 0 ("A" in base64 but should be padding chars)
                 chars.pop();
                 chars.pop();
-                chars.push(BASE_64_PAD);
-                chars.push(BASE_64_PAD);
+                chars.push(base64::PAD);
+                chars.push(base64::PAD);
             }
             2 => {
                 // final 1 char will be 0 ("A" in base64 but should be padding chars)
                 chars.pop();
-                chars.push(BASE_64_PAD);
+                chars.push(base64::PAD);
             }
             _ => (),
         };
