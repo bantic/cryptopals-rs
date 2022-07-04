@@ -6,8 +6,8 @@ pub trait Xor {
 
 impl Xor for [u8] {
     fn xor(&self, other: &[u8]) -> Vec<u8> {
-        self.chunks(other.len())
-            .flat_map(|chunk| zip(chunk, other).map(|(l, r)| l ^ r))
+        zip(self, other.iter().cycle())
+            .map(|(l, r)| l ^ r)
             .collect()
     }
 }
@@ -23,6 +23,8 @@ fn test_xor() {
     assert_eq!([0, 1, 0].xor(&[1]), [1, 0, 1]);
     assert_eq!([0].xor(&[1, 0]), [1]);
 
-    assert_eq!([5].xor(&[1]), [4]);
+    assert_eq!([5].xor(&[1, 0]), [4]);
     assert_eq!([5].xor(&[2]), [7]);
+    assert_eq!([5, 5, 5].xor(&[2, 2, 2]), [7, 7, 7]);
+    assert_eq!([5, 5, 5].xor(&[2, 2, 2, 0]), [7, 7, 7]);
 }
