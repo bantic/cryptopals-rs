@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{hex_2_bin, xor::Xor};
+use crate::{
+    serializers::{from_hex, Serialize},
+    xor::Xor,
+};
 
 const INPUT: &str = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
 
@@ -68,47 +71,36 @@ fn score(s: &str) -> u32 {
     }) as u32
 }
 
-fn bin_2_decimal(bin: &[u8]) -> u8 {
-    bin.iter()
-        .rev()
-        .enumerate()
-        .fold(0, |acc, (idx, v)| acc + (v * (1 << idx)))
+pub fn challenge1() {
+    println!("SET 1 CHALLENGE 1");
+    dbg!(from_hex("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d").unwrap().to_base64() == "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t");
 }
 
 #[test]
-fn test_bin_2_decimal() {
-    assert_eq!(bin_2_decimal(&[0]), 0);
-    assert_eq!(bin_2_decimal(&[1]), 1);
-    assert_eq!(bin_2_decimal(&[1, 0]), 2);
-    assert_eq!(bin_2_decimal(&[1, 1]), 3);
-    assert_eq!(bin_2_decimal(&[1, 1, 1]), 7);
-    assert_eq!(bin_2_decimal(&[1, 0, 0, 0]), 8);
-    assert_eq!(bin_2_decimal(&[1, 0, 0, 1]), 9);
+fn test_challenge1() {
+    assert_eq!(from_hex("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d").unwrap().to_base64(), "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t");
 }
 
-fn hex_2_bytes(hex: &str) -> Vec<u8> {
-    hex_2_bin(hex).chunks(8).map(bin_2_decimal).collect()
-}
-
-fn hex_2_utf8(hex: &str) -> Option<String> {
-    let bytes = hex_2_bytes(hex);
-    let res = std::str::from_utf8(&bytes);
-    if let Ok(out) = res {
-        Some(out.into())
-    } else {
-        None
-    }
+pub fn challenge2() {
+    println!("SET 1 CHALLENGE 2");
+    dbg!(
+        from_hex("1c0111001f010100061a024b53535009181c")
+            .unwrap()
+            .xor(&from_hex("686974207468652062756c6c277320657965").unwrap())
+            .to_hex()
+            == "746865206b696420646f6e277420706c6179"
+    );
 }
 
 #[test]
-fn test_hex_2_bytes() {
-    assert_eq!(hex_2_bytes("0"), [0]);
-    assert_eq!(hex_2_bytes("1"), [1]);
-    assert_eq!(hex_2_bytes("9"), [9]);
-    assert_eq!(hex_2_bytes("A"), [10]);
-    assert_eq!(hex_2_bytes("10"), [16]);
-    assert_eq!(hex_2_bytes("80"), [128]);
-    assert_eq!(hex_2_bytes("8010"), [128, 16]);
+fn test_challenge2() {
+    assert_eq!(
+        from_hex("1c0111001f010100061a024b53535009181c")
+            .unwrap()
+            .xor(&from_hex("686974207468652062756c6c277320657965").unwrap())
+            .to_hex(),
+        "746865206b696420646f6e277420706c6179"
+    );
 }
 
 pub fn challenge3() {
@@ -120,16 +112,18 @@ pub fn challenge3() {
     }
 }
 
-fn xor_hex_str_by_byte(s: &str, b: u8) -> Vec<u8> {
-    let in_bytes = hex_2_bytes(s);
-    let b_xor = vec![b; in_bytes.len()];
-    in_bytes.xor(&b_xor)
+#[test]
+fn test_challenge3() {
+    assert_eq!(
+        break_single_byte_xor(INPUT).unwrap().2,
+        "Cooking MC's like a pound of bacon"
+    );
 }
 
 fn break_single_byte_xor(s: &str) -> Option<(u32, u8, String)> {
     (0u8..=255)
         .map(|b| {
-            let out_bytes = xor_hex_str_by_byte(s, b);
+            let out_bytes = from_hex(s).unwrap().xor(&[b]);
             let (_score, out_s) = match std::str::from_utf8(&out_bytes) {
                 Ok(v) => (score(v), v),
                 _ => (u32::MAX, ""),

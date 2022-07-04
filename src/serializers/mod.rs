@@ -6,10 +6,6 @@ pub trait Serialize {
     fn to_base64(&self) -> String;
 }
 
-fn decimal_2_hex(v: u8) -> char {
-    char::from_digit(v.into(), 16).unwrap()
-}
-
 pub fn from_hex(s: &str) -> Result<Vec<u8>, String> {
     if s.len() % 2 != 0 {
         return Err("Hex string must be even length".into());
@@ -42,34 +38,85 @@ fn test_from_hex() -> Result<(), String> {
 impl Serialize for [u8] {
     fn to_hex(&self) -> String {
         self.iter()
-            .rev()
-            .collect::<Vec<_>>()
-            .chunks(4)
-            .map(|chunk| match chunk {
-                [&d, &c, &b, &a] => 8 * a + 4 * b + 2 * c + d,
-                [&d, &c, &b] => 4 * b + 2 * c + d,
-                [&d, &c] => 2 * c + d,
-                [&d] => d,
-                _ => panic!("unexpected chunk size {}", chunk.len()),
+            .flat_map(|byte| {
+                [
+                    char::from_digit((byte >> 4) as u32, 16).unwrap(),
+                    char::from_digit((byte & 0b00001111) as u32, 16).unwrap(),
+                ]
             })
-            .map(decimal_2_hex)
-            .rev()
             .collect()
     }
 
     fn to_base64(&self) -> String {
-        unimplemented!("todo- tobase64")
+        let mut chars: Vec<char> = self
+            .chunks(3)
+            .flat_map(chunk_to_base64_digits)
+            .map(|digit| BASE_64_ALPHABET[digit as usize])
+            .collect();
+        match self.len() % 3 {
+            0 => (),
+            1 => {
+                // final 2 chars will be 0 ("A" in base64 but should be padding chars)
+                chars.pop();
+                chars.pop();
+                chars.push(BASE_64_PAD);
+                chars.push(BASE_64_PAD);
+            }
+            2 => {
+                // final 1 char will be 0 ("A" in base64 but should be padding chars)
+                chars.pop();
+                chars.push(BASE_64_PAD);
+            }
+            _ => (),
+        };
+        chars.iter().collect()
     }
 }
 
+fn chunk_to_base64_digits(chunk: &[u8]) -> Vec<u8> {
+    let [a, b, c] = match *chunk {
+        [a, b, c] => [a, b, c],
+        [a, b] => [a, b, 0],
+        [a] => [a, 0, 0],
+        _ => panic!("unexpected chunk {:?}", chunk),
+    };
+
+    // https://en.wikipedia.org/wiki/Base64#Base64_table_from_RFC_4648
+    vec![
+        (a & 0b11111100) >> 2,                             // upper 6 of a
+        ((a & 0b00000011) << 4) | ((b & 0b11110000) >> 4), // lower 2 of a, upper 4 of b
+        ((b & 0b00001111) << 2) | ((c & 0b11000000) >> 6), // lower 4 of b, upper 2 of c
+        (c & 0b00111111),                                  // lower 6 of c
+    ]
+}
+
 #[test]
-fn test_bin_2_hex() {
+fn test_chunk_to_base64_digits() {
+    assert_eq!(chunk_to_base64_digits(&[0x4d, 0x61, 0x6e]), [19, 22, 5, 46]);
+    assert_eq!(chunk_to_base64_digits(&[0x4d, 0x61, 0]), [19, 22, 4, 0]);
+    assert_eq!(chunk_to_base64_digits(&[0x4d, 0, 0]), [19, 16, 0, 0]);
+}
+
+#[test]
+fn test_to_base64() {
+    assert_eq!(&[0x4d, 0x61, 0x6e].to_base64(), "TWFu");
+    assert_eq!(&[0x4d, 0x61].to_base64(), "TWE=");
+    assert_eq!(&[0x4d].to_base64(), "TQ==");
+
+    // See: https://en.wikipedia.org/wiki/Base64#Output_padding
     assert_eq!(
-        [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1].to_hex(),
-        "1c011"
+        // "light w"
+        &[0x6c, 0x69, 0x67, 0x68, 0x74, 0x20, 0x77].to_base64(),
+        "bGlnaHQgdw=="
     );
     assert_eq!(
-        [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1].to_hex(),
-        "1c011f"
+        // "light wo"
+        &[0x6c, 0x69, 0x67, 0x68, 0x74, 0x20, 0x77, 0x6f].to_base64(),
+        "bGlnaHQgd28="
+    );
+    assert_eq!(
+        // "light wor"
+        &[0x6c, 0x69, 0x67, 0x68, 0x74, 0x20, 0x77, 0x6f, 0x72].to_base64(),
+        "bGlnaHQgd29y"
     );
 }
