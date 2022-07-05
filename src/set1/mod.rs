@@ -1,3 +1,5 @@
+use std::iter::zip;
+
 use crate::{
     letter_frequency::{self, break_single_byte_xor, DecryptResult},
     serializers::{from_hex, Serialize},
@@ -124,4 +126,20 @@ pub fn challenge5() {
         solve_challenge5()
     );
     dbg!(solve_challenge5() == CHALLENGE_5_EXPECTED);
+}
+
+fn hamming_distance(l: &[u8], r: &[u8]) -> u32 {
+    if l.len() != r.len() {
+        panic!("l len {} != r len {}", l.len(), r.len());
+    }
+
+    zip(l, r).map(|(l, r)| ((l ^ r) as u32).count_ones()).sum()
+}
+
+#[test]
+fn test_hamming_distance() {
+    assert_eq!(
+        hamming_distance("this is a test".as_bytes(), "wokka wokka!!!".as_bytes()),
+        37
+    );
 }
