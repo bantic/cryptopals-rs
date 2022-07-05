@@ -43,7 +43,7 @@ pub fn challenge3() {
     println!("SET 1 CHALLENGE 3");
     let bytes = from_hex(CHALLENGE_3_INPUT).unwrap();
     if let Some(dr) = letter_frequency::break_single_byte_xor(&bytes) {
-        println!("score {}, key {} -> {}", dr.score, dr.key, dr.result);
+        println!("key {} -> score {} -> {}", dr.key, dr.score, dr.result);
     } else {
         panic!("could not solve challenge 3");
     }

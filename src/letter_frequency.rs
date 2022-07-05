@@ -63,16 +63,15 @@ fn count_chars(bytes: &[u8]) -> HashMap<char, usize> {
     counts
 }
 
-fn is_control(byte: u8) -> bool {
-    byte < 0x20 || byte == 0x7F
-}
-
 // compute mean-squared-error, see https://statisticsbyjim.com/regression/mean-squared-error-mse/
 fn compute_score(bytes: &[u8]) -> u32 {
     if !bytes.is_ascii() {
         return u32::MAX;
     }
-    if bytes.iter().any(|&b| is_control(b) && b != b'\n') {
+    if bytes
+        .iter()
+        .any(|&b| (b.to_ascii_lowercase().is_ascii_control()) && b != b'\n')
+    {
         return u32::MAX;
     }
     let counts = count_chars(bytes);
