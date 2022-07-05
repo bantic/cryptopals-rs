@@ -94,6 +94,34 @@ pub fn challenge4() {
             decrypt_result.result.trim_end()
         );
     } else {
-        println!("!!!!!! Failed");
+        panic!("Could not solve challenge 4");
     }
+}
+
+const CHALLENGE_5_INPUT: &str =
+    "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
+const CHALLENGE_5_EXPECTED: &str= "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f";
+const CHALLENGE_5_KEY: &str = "ICE";
+
+#[test]
+fn test_challenge5() {
+    assert_eq!(solve_challenge5(), CHALLENGE_5_EXPECTED);
+}
+
+fn solve_challenge5() -> String {
+    CHALLENGE_5_INPUT
+        .as_bytes()
+        .xor(CHALLENGE_5_KEY.as_bytes())
+        .to_hex()
+}
+
+pub fn challenge5() {
+    println!("SET 1 CHALLENGE 5");
+    println!(
+        "encode:\n\"\"\"\n{}\n\"\"\"\nwith key \"{}\" ->\n\t{}",
+        CHALLENGE_5_INPUT,
+        CHALLENGE_5_KEY,
+        solve_challenge5()
+    );
+    dbg!(solve_challenge5() == CHALLENGE_5_EXPECTED);
 }
