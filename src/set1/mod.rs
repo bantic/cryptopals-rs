@@ -1,75 +1,11 @@
-use std::collections::HashMap;
-
 use crate::{
+    letter_frequency::{self, break_single_byte_xor, DecryptResult},
     serializers::{from_hex, Serialize},
     xor::Xor,
 };
 
-const INPUT: &str = "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
-
-// Source:
-// Lee, E. Stewart. "Essays about Computer Security" (PDF). University of Cambridge Computer Laboratory. p. 181.
-// And: https://github.com/aopicier/cryptopals-rust/blob/master/challenges/src/set1/challenge03.rs
-static EXPECTED_FREQUENCIES: [(char, f32); 28] = [
-    (' ', 12.17), // Whitespace
-    ('.', 6.57),  // Others
-    ('a', 6.09),
-    ('b', 1.05),
-    ('c', 2.84),
-    ('d', 2.92),
-    ('e', 11.36),
-    ('f', 1.79),
-    ('g', 1.38),
-    ('h', 3.41),
-    ('i', 5.44),
-    ('j', 0.24),
-    ('k', 0.41),
-    ('l', 2.92),
-    ('m', 2.76),
-    ('n', 5.44),
-    ('o', 6.00),
-    ('p', 1.95),
-    ('q', 0.24),
-    ('r', 4.95),
-    ('s', 5.68),
-    ('t', 8.03),
-    ('u', 2.43),
-    ('v', 0.97),
-    ('w', 1.38),
-    ('x', 0.24),
-    ('y', 1.30),
-    ('z', 0.03),
-];
-
-fn char_counts(s: &str) -> HashMap<char, usize> {
-    let mut counts: HashMap<char, usize> = HashMap::new();
-    for c in s.chars() {
-        if !c.is_ascii() {
-            continue;
-        }
-        let c = match c.to_ascii_lowercase() {
-            x if x.is_ascii_alphabetic() => x,
-            ' ' | '\t' => ' ',
-            _ => '.',
-        };
-        *counts.entry(c).or_default() += 1;
-    }
-
-    counts
-}
-
-fn score(s: &str) -> u32 {
-    if s.chars().any(|c| c.is_control() || !c.is_ascii()) {
-        return u32::MAX;
-    }
-    let counts = char_counts(s);
-    let len = s.len();
-    EXPECTED_FREQUENCIES.iter().fold(0f32, |acc, &(ch, freq)| {
-        let expected_count = len as f32 * (freq / 100f32);
-        let &actual_count = counts.get(&ch).unwrap_or(&0usize);
-        acc + (expected_count - actual_count as f32).powi(2)
-    }) as u32
-}
+pub const CHALLENGE_3_INPUT: &str =
+    "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
 
 pub fn challenge1() {
     println!("SET 1 CHALLENGE 1");
@@ -105,8 +41,9 @@ fn test_challenge2() {
 
 pub fn challenge3() {
     println!("SET 1 CHALLENGE 3");
-    if let Some((_score, key, result)) = break_single_byte_xor(INPUT) {
-        println!("score {}, key {} -> {}", _score, key, result);
+    let bytes = from_hex(CHALLENGE_3_INPUT).unwrap();
+    if let Some(dr) = letter_frequency::break_single_byte_xor(&bytes) {
+        println!("score {}, key {} -> {}", dr.score, dr.key, dr.result);
     } else {
         panic!("could not solve challenge 3");
     }
@@ -115,35 +52,48 @@ pub fn challenge3() {
 #[test]
 fn test_challenge3() {
     assert_eq!(
-        break_single_byte_xor(INPUT).unwrap().2,
+        letter_frequency::break_single_byte_xor(&from_hex(CHALLENGE_3_INPUT).unwrap())
+            .unwrap()
+            .result,
         "Cooking MC's like a pound of bacon"
     );
 }
 
-fn break_single_byte_xor(s: &str) -> Option<(u32, u8, String)> {
-    (0u8..=255)
-        .map(|b| {
-            let out_bytes = from_hex(s).unwrap().xor(&[b]);
-            let (_score, out_s) = match std::str::from_utf8(&out_bytes) {
-                Ok(v) => (score(v), v),
-                _ => (u32::MAX, ""),
-            };
-            (_score, b, out_s.to_string())
+fn solve_challenge4() -> Option<DecryptResult> {
+    let input = include_str!("./data/challenge4.txt");
+
+    input
+        .lines()
+        .map(str::trim_end)
+        .filter_map(|line| {
+            let bytes = from_hex(line).unwrap();
+            break_single_byte_xor(&bytes)
         })
-        .min_by_key(|(_score, _, _)| *_score)
+        .min_by_key(|decrypt_result| decrypt_result.score)
+}
+
+#[test]
+fn test_challenge4() {
+    assert_eq!(
+        solve_challenge4(),
+        Some(DecryptResult {
+            score: 0,
+            key: 53,
+            result: "Now that the party is jumping\n".into()
+        })
+    );
 }
 
 pub fn challenge4() {
     println!("SET 1 CHALLENGE 4");
-    let input = include_str!("./data/challenge4.txt");
-    for line in input.lines() {
-        if let Some((_score, key, result)) = break_single_byte_xor(line) {
-            if _score < u32::MAX {
-                println!(
-                    "line {} -> score {}, key {} -> {}",
-                    line, _score, key, result
-                );
-            }
-        }
+    if let Some(decrypt_result) = solve_challenge4() {
+        println!(
+            "key {} -> score {} -> {}",
+            decrypt_result.key,
+            decrypt_result.score,
+            decrypt_result.result.trim_end()
+        );
+    } else {
+        println!("!!!!!! Failed");
     }
 }
