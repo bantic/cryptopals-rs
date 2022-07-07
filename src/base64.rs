@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 // https://en.wikipedia.org/wiki/Base64#Base64_table_from_RFC_4648
 pub const ALPHABET: [char; 64] = [
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
@@ -6,11 +8,21 @@ pub const ALPHABET: [char; 64] = [
     '5', '6', '7', '8', '9', '+', '/',
 ];
 
+lazy_static! {
+    static ref OCTET_TO_BASE64_SEXTET: HashMap<u8, u8> = {
+        let mut m = HashMap::new();
+        m.insert(0, 0);
+        for (idx, &ch) in ALPHABET.iter().enumerate() {
+            m.insert(ch as u8, idx as u8);
+        }
+        m
+    };
+}
+
 pub const PAD: char = '=';
 
-pub fn to_base64_sextet(ascii_byte: u8) -> u8 {
-    let ch = ascii_byte as char;
-    ALPHABET.iter().position(|&x| x == ch).unwrap() as u8
+fn to_base64_sextet(ascii_byte: u8) -> u8 {
+    *OCTET_TO_BASE64_SEXTET.get(&ascii_byte).unwrap()
 }
 
 fn bytes_from_base64_chunk(bytes: &[u8]) -> Vec<u8> {
