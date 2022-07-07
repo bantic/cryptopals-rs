@@ -11,4 +11,8 @@ fn main() {
     println!("-----------------------");
     set1::challenge5();
     println!("-----------------------");
+
+    let chal_6_input = include_str!("./set1/data/challenge6.txt");
+    let chal_6_input = chal_6_input.replace('\n', "");
+    println!("{}", chal_6_input);
 }

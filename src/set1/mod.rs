@@ -143,3 +143,19 @@ fn test_hamming_distance() {
         37
     );
 }
+
+pub fn find_keysize(input: &[u8]) {
+    let rng = 2..=40;
+    let mut possibilities = rng
+        .map(|keysize| {
+            let (l, r) = (&input[0..keysize], &input[keysize..keysize * 2]);
+            let dist = hamming_distance(l, r);
+            (dist / keysize as u32, keysize)
+        })
+        .collect::<Vec<(u32, usize)>>();
+    possibilities.sort_by_key(|&(dist, _)| dist);
+    possibilities.reverse();
+    for (dist, keysize) in possibilities {
+        println!("keysize {} -> dist {}", keysize, dist);
+    }
+}
