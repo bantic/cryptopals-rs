@@ -149,20 +149,16 @@ pub fn challenge6() -> Result<(), String> {
     let chal_6_input = include_str!("./data/challenge6.txt");
     let chal_6_input = chal_6_input.replace('\n', "");
     let chal_6_input = crate::serializers::base64::from_base64(&chal_6_input)?;
+    dbg!(chal_6_input.is_ascii());
     let out_bytes = break_repeating_key_xor(&chal_6_input);
     println!("{}", std::str::from_utf8(&out_bytes).unwrap());
     Ok(())
 }
 
 fn transpose_input(input: &[u8], size: usize) -> Vec<Vec<u8>> {
-    let mut out = Vec::new();
-    // let chunks = input.chunks(size);
-    for skip in 0..size {
-        let block: Vec<u8> = input.iter().skip(skip).step_by(size).copied().collect();
-        // let block = chunks
-        out.push(block);
-    }
-    out
+    (0..size)
+        .map(|offset| input.iter().skip(offset).step_by(size).copied().collect())
+        .collect()
 }
 
 fn break_repeating_key_xor(input: &[u8]) -> Vec<u8> {
@@ -174,10 +170,12 @@ fn break_repeating_key_xor(input: &[u8]) -> Vec<u8> {
     dbg!(blocks.len(), input.len(), keysize);
     let mut key_bytes: Vec<u8> = Vec::new();
     for block in blocks {
+        dbg!(block.len());
         let res = break_single_byte_xor(&block).unwrap();
         key_bytes.push(res.key);
-        dbg!(res.key);
+        dbg!(res.key, res.score);
     }
+    dbg!(std::str::from_utf8(&key_bytes).unwrap());
     input.xor(&key_bytes)
 }
 
@@ -221,18 +219,33 @@ fn test_transpose() {
     );
 }
 
+fn normalized_hamming_distance(chunks: &[&[u8]]) -> f32 {
+    let len = chunks.len();
+    let size = chunks[0].len();
+    let mut dists = Vec::new();
+    for i in 0..len {
+        for j in (i + 1)..len {
+            let l = chunks[i];
+            let r = chunks[j];
+            dists.push(hamming_distance(l, r));
+        }
+    }
+    let sum: u32 = dists.iter().sum::<u32>();
+    let avg_dist = sum as f32 / dists.len() as f32;
+    avg_dist / size as f32
+}
+
 pub fn find_keysize(input: &[u8]) -> Vec<(f32, usize)> {
     let rng = 2..=40;
     let mut possibilities = rng
         .map(|keysize| {
-            let (l, r) = (&input[0..keysize], &input[keysize..keysize * 2]);
-            let dist = hamming_distance(l, r);
-            (dist as f32 / keysize as f32, keysize)
+            let chunks = input.chunks(keysize).take(4).collect::<Vec<&[u8]>>();
+            (normalized_hamming_distance(&chunks), keysize)
         })
         .collect::<Vec<(f32, usize)>>();
     possibilities.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-    // for (dist, keysize) in &possibilities {
-    //     println!("keysize {} -> dist {}", keysize, dist);
-    // }
+    for (dist, keysize) in possibilities.iter().take(5) {
+        println!("keysize {} -> dist {}", keysize, dist);
+    }
     possibilities
 }
