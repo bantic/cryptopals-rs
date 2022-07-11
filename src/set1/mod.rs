@@ -188,7 +188,7 @@ fn transpose_input(input: &[u8], size: usize) -> Vec<Vec<u8>> {
 /**
  * Returns the key that breaks the input
  */
-fn break_repeating_key_xor(input: &[u8]) -> Option<Vec<u8>> {
+pub fn break_repeating_key_xor(input: &[u8]) -> Option<Vec<u8>> {
     let possible_keysizes = find_keysize(input);
 
     possible_keysizes.iter().find_map(|&(_dist, keysize)| {
