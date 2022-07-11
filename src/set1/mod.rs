@@ -145,38 +145,69 @@ fn test_hamming_distance() {
 }
 
 pub fn challenge6() -> Result<(), String> {
-    println!("SET 1 CHALLENGE 5");
+    println!("SET 1 CHALLENGE 6");
     let chal_6_input = include_str!("./data/challenge6.txt");
     let chal_6_input = chal_6_input.replace('\n', "");
     let chal_6_input = crate::serializers::base64::from_base64(&chal_6_input)?;
-    dbg!(chal_6_input.is_ascii());
-    let out_bytes = break_repeating_key_xor(&chal_6_input);
-    println!("{}", std::str::from_utf8(&out_bytes).unwrap());
+
+    if let Some(key) = break_repeating_key_xor(&chal_6_input) {
+        println!("{}", std::str::from_utf8(&chal_6_input.xor(&key)).unwrap());
+    } else {
+        eprintln!("Failed to decode!");
+    }
     Ok(())
 }
 
+#[test]
+fn test_challenge6() {
+    let chal_6_input = include_str!("./data/challenge6.txt");
+    let chal_6_input = chal_6_input.replace('\n', "");
+    let chal_6_input = crate::serializers::base64::from_base64(&chal_6_input).unwrap();
+    let expected = include_str!("./data/challenge6_result.txt");
+    let key = break_repeating_key_xor(&chal_6_input);
+    assert!(key.is_some());
+    let key = key.unwrap();
+    let out = std::str::from_utf8(&chal_6_input.xor(&key))
+        .unwrap()
+        .to_string();
+    assert_eq!(out.len(), expected.len());
+    assert_eq!(&out, &expected);
+}
+
+/**
+ * return `size` number of blocks from `input`, where the first block contains the 0th byte, the size-th byte, the 2*size-th byte,
+ * the second block contains the 1st byte, the size+1st byte, the 2*size+1st byte, etc.
+ * The final block returned may be shorter than the others.
+ */
 fn transpose_input(input: &[u8], size: usize) -> Vec<Vec<u8>> {
     (0..size)
         .map(|offset| input.iter().skip(offset).step_by(size).copied().collect())
         .collect()
 }
 
-fn break_repeating_key_xor(input: &[u8]) -> Vec<u8> {
+/**
+ * Returns the key that breaks the input
+ */
+fn break_repeating_key_xor(input: &[u8]) -> Option<Vec<u8>> {
     let possible_keysizes = find_keysize(input);
 
-    let keysize = possible_keysizes.first().unwrap().1;
-    dbg!(keysize);
-    let blocks = transpose_input(input, keysize);
-    dbg!(blocks.len(), input.len(), keysize);
-    let mut key_bytes: Vec<u8> = Vec::new();
-    for block in blocks {
-        dbg!(block.len());
-        let res = break_single_byte_xor(&block).unwrap();
-        key_bytes.push(res.key);
-        dbg!(res.key, res.score);
-    }
-    dbg!(std::str::from_utf8(&key_bytes).unwrap());
-    input.xor(&key_bytes)
+    possible_keysizes.iter().find_map(|&(_dist, keysize)| {
+        let blocks = transpose_input(input, keysize);
+        if blocks.iter().any(|block| !block.is_ascii()) {
+            return None;
+        }
+        let mut key_bytes: Vec<u8> = Vec::new();
+        for block in blocks {
+            dbg!(block.len());
+            let res = break_single_byte_xor(&block).unwrap();
+            if res.score == u32::MAX {
+                return None;
+            }
+            key_bytes.push(res.key);
+            dbg!(res.key, res.score);
+        }
+        Some(key_bytes)
+    })
 }
 
 #[test]
@@ -219,9 +250,22 @@ fn test_transpose() {
     );
 }
 
+/**
+ * Given the chunks, finds the hamming distance between each of them,
+ * averages those distances, and then normalizes by the size of each chunk
+ */
 fn normalized_hamming_distance(chunks: &[&[u8]]) -> f32 {
     let len = chunks.len();
     let size = chunks[0].len();
+
+    if !chunks
+        .iter()
+        .map(|chunk| chunk.len())
+        .all(|chunk_len| chunk_len == size)
+    {
+        panic!("Unexpectedly found differently-sized chunks for normalized_hamming_distance");
+    }
+
     let mut dists = Vec::new();
     for i in 0..len {
         for j in (i + 1)..len {
@@ -235,8 +279,13 @@ fn normalized_hamming_distance(chunks: &[&[u8]]) -> f32 {
     avg_dist / size as f32
 }
 
+/**
+ * Find possible key sizes for repeating-key xor.
+ * Returns all considered keysizes in descending order of likelihood
+ */
 pub fn find_keysize(input: &[u8]) -> Vec<(f32, usize)> {
-    let rng = 2..=40;
+    let max_keysize = (40usize).min(input.len() / 4);
+    let rng = 2..=max_keysize;
     let mut possibilities = rng
         .map(|keysize| {
             let chunks = input.chunks(keysize).take(4).collect::<Vec<&[u8]>>();
@@ -244,8 +293,5 @@ pub fn find_keysize(input: &[u8]) -> Vec<(f32, usize)> {
         })
         .collect::<Vec<(f32, usize)>>();
     possibilities.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-    for (dist, keysize) in possibilities.iter().take(5) {
-        println!("keysize {} -> dist {}", keysize, dist);
-    }
     possibilities
 }
