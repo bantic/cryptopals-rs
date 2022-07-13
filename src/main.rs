@@ -13,4 +13,7 @@ fn main() {
     println!("-----------------------");
     set1::challenge6().unwrap();
     println!("-----------------------");
+
+    set1::challenge7();
+    println!("-----------------------");
 }

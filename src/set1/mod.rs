@@ -1,8 +1,10 @@
 use std::iter::zip;
 
+use openssl::symm::{decrypt, encrypt, Cipher, Crypter};
+
 use crate::{
     letter_frequency::{self, break_single_byte_xor, DecryptResult},
-    serializers::{from_hex, Serialize},
+    serializers::{base64::from_base64, from_hex, Serialize},
     xor::Xor,
 };
 
@@ -294,4 +296,58 @@ pub fn find_keysize(input: &[u8]) -> Vec<(f32, usize)> {
         .collect::<Vec<(f32, usize)>>();
     possibilities.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
     possibilities
+}
+
+fn aes_128_ecb_encrypt(bytes: &[u8], key: &[u8]) -> Vec<u8> {
+    let cipher = Cipher::aes_128_cbc();
+    encrypt(cipher, key, None, bytes).unwrap()
+}
+
+fn aes_128_ecb_decrypt_block(block: &[u8], key: &[u8]) -> Vec<u8> {
+    let padding = [0u8; 16];
+    let encrypted_padding = aes_128_ecb_encrypt(&padding, key);
+    let cipher = Cipher::aes_128_cbc();
+    let mut data = block.to_vec();
+    data.extend_from_slice(&encrypted_padding);
+    let mut plaintext = decrypt(cipher, key, None, &data).unwrap();
+    plaintext.truncate(16);
+    plaintext
+}
+
+fn unpad(data: &mut Vec<u8>) {
+    let len_new = data.len() - data[data.len() - 1] as usize;
+    data.truncate(len_new);
+}
+
+pub fn challenge7() {
+    println!("SET 1 CHALLENGE 7");
+    let key = "YELLOW SUBMARINE".as_bytes();
+    let b64 = include_str!("./data/challenge7.txt").replace('\n', "");
+    let data = from_base64(&b64).unwrap();
+    let mut plaintext = vec![];
+    for chunk in data.chunks(16) {
+        plaintext.extend_from_slice(&aes_128_ecb_decrypt_block(chunk, key));
+    }
+    unpad(&mut plaintext);
+    // let mut data = data[0..16].to_vec();
+    // let padding = [0u8; 16];
+    // let encrypted_padding = aes_128_ecb_encrypt(&padding, key);
+    // data.extend_from_slice(&encrypted_padding);
+    // // let mut result = vec![0; data.len() + t.block_size()];
+    // let cipher = Cipher::aes_128_cbc();
+    // let mut plaintext = decrypt(cipher, key, None, &data).unwrap();
+    // plaintext.truncate(16);
+    println!("{:?}", plaintext);
+    println!("{}", String::from_utf8_lossy(&plaintext));
+
+    // let t = Cipher::aes_128_cbc();
+    // let mut d = Crypter::new(t, openssl::symm::Mode::Decrypt, key, None).unwrap();
+    // d.pad(true);
+    // let mut result = vec![0; data.len() + t.block_size()];
+    // d.update(data, &mut result).unwrap();
+    // let len = d.finalize(&mut result).unwrap();
+    // dbg!(len);
+    // result.truncate(len);
+    // println!("{:?}", result);
+    // println!("{:?}", String::from_utf8_lossy(&result));
 }
