@@ -1,12 +1,7 @@
-use std::iter::zip;
-
-use openssl::{
-    cipher,
-    symm::{decrypt, encrypt, Cipher, Crypter},
-};
+use openssl::symm::{decrypt, Cipher};
 
 use crate::{
-    letter_frequency::{self, break_single_byte_xor, DecryptResult},
+    letter_frequency::{self, break_repeating_key_xor, break_single_byte_xor, DecryptResult},
     serializers::{base64::from_base64, from_hex, Serialize},
     xor::Xor,
 };
@@ -133,22 +128,6 @@ pub fn challenge5() {
     dbg!(solve_challenge5() == CHALLENGE_5_EXPECTED);
 }
 
-fn hamming_distance(l: &[u8], r: &[u8]) -> u32 {
-    if l.len() != r.len() {
-        panic!("l len {} != r len {}", l.len(), r.len());
-    }
-
-    zip(l, r).map(|(l, r)| ((l ^ r) as u32).count_ones()).sum()
-}
-
-#[test]
-fn test_hamming_distance() {
-    assert_eq!(
-        hamming_distance("this is a test".as_bytes(), "wokka wokka!!!".as_bytes()),
-        37
-    );
-}
-
 pub fn challenge6() -> Result<(), String> {
     println!("SET 1 CHALLENGE 6");
     let chal_6_input = include_str!("./data/challenge6.txt");
@@ -177,128 +156,6 @@ fn test_challenge6() {
         .to_string();
     assert_eq!(out.len(), expected.len());
     assert_eq!(&out, &expected);
-}
-
-/**
- * return `size` number of blocks from `input`, where the first block contains the 0th byte, the size-th byte, the 2*size-th byte,
- * the second block contains the 1st byte, the size+1st byte, the 2*size+1st byte, etc.
- * The final block returned may be shorter than the others.
- */
-fn transpose_input(input: &[u8], size: usize) -> Vec<Vec<u8>> {
-    (0..size)
-        .map(|offset| input.iter().skip(offset).step_by(size).copied().collect())
-        .collect()
-}
-
-/**
- * Returns the key that breaks the input
- */
-pub fn break_repeating_key_xor(input: &[u8]) -> Option<Vec<u8>> {
-    let possible_keysizes = find_keysize(input);
-
-    possible_keysizes.iter().find_map(|&(_dist, keysize)| {
-        let blocks = transpose_input(input, keysize);
-        if blocks.iter().any(|block| !block.is_ascii()) {
-            return None;
-        }
-        let mut key_bytes: Vec<u8> = Vec::new();
-        for block in blocks {
-            dbg!(block.len());
-            let res = break_single_byte_xor(&block).unwrap();
-            if res.score == u32::MAX {
-                return None;
-            }
-            key_bytes.push(res.key);
-            dbg!(res.key, res.score);
-        }
-        Some(key_bytes)
-    })
-}
-
-#[test]
-fn test_transpose() {
-    assert_eq!(
-        transpose_input(&[0, 2, 3, 4, 1, 2, 3, 4], 4),
-        [[0, 1], [2, 2], [3, 3], [4, 4],]
-    );
-    assert_eq!(
-        transpose_input(&[1, 2, 3, 4, 1, 2, 3, 4], 2),
-        [[1, 3, 1, 3], [2, 4, 2, 4]]
-    );
-    assert_eq!(
-        transpose_input(&[1, 2, 3, 4, 1, 2, 3, 4], 3),
-        vec![vec![1, 4, 3], vec![2, 1, 4], vec![3, 2]] // use vec! to fix type error since sub-arrays are different size
-    );
-    assert_eq!(
-        transpose_input(&[1, 2, 3, 4, 5, 1, 2, 3, 4, 5, 1, 2, 3, 4, 5], 5),
-        [[1, 1, 1], [2, 2, 2], [3, 3, 3], [4, 4, 4], [5, 5, 5]]
-    );
-    assert_eq!(
-        transpose_input(
-            &vec![1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8]
-                .iter()
-                .cycle()
-                .take(35)
-                .copied()
-                .collect::<Vec<u8>>(),
-            7
-        ),
-        [
-            [1, 1, 1, 1, 1],
-            [2, 2, 2, 2, 2],
-            [3, 3, 3, 3, 3],
-            [4, 4, 4, 4, 4],
-            [5, 5, 5, 5, 5],
-            [6, 6, 6, 6, 6],
-            [7, 7, 7, 7, 7]
-        ]
-    );
-}
-
-/**
- * Given the chunks, finds the hamming distance between each of them,
- * averages those distances, and then normalizes by the size of each chunk
- */
-fn normalized_hamming_distance(chunks: &[&[u8]]) -> f32 {
-    let len = chunks.len();
-    let size = chunks[0].len();
-
-    if !chunks
-        .iter()
-        .map(|chunk| chunk.len())
-        .all(|chunk_len| chunk_len == size)
-    {
-        panic!("Unexpectedly found differently-sized chunks for normalized_hamming_distance");
-    }
-
-    let mut dists = Vec::new();
-    for i in 0..len {
-        for j in (i + 1)..len {
-            let l = chunks[i];
-            let r = chunks[j];
-            dists.push(hamming_distance(l, r));
-        }
-    }
-    let sum: u32 = dists.iter().sum::<u32>();
-    let avg_dist = sum as f32 / dists.len() as f32;
-    avg_dist / size as f32
-}
-
-/**
- * Find possible key sizes for repeating-key xor.
- * Returns all considered keysizes in descending order of likelihood
- */
-pub fn find_keysize(input: &[u8]) -> Vec<(f32, usize)> {
-    let max_keysize = (40usize).min(input.len() / 4);
-    let rng = 2..=max_keysize;
-    let mut possibilities = rng
-        .map(|keysize| {
-            let chunks = input.chunks(keysize).take(4).collect::<Vec<&[u8]>>();
-            (normalized_hamming_distance(&chunks), keysize)
-        })
-        .collect::<Vec<(f32, usize)>>();
-    possibilities.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-    possibilities
 }
 
 fn aes_128_ecb_decrypt(ciphertext: &[u8], key: &[u8]) -> Vec<u8> {
