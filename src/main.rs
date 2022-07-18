@@ -1,4 +1,5 @@
 use cryptopals_rs::set1;
+use cryptopals_rs::set2;
 
 fn main() {
     set1::challenge1();
@@ -16,5 +17,7 @@ fn main() {
     set1::challenge7();
     println!("-----------------------");
     set1::challenge8();
+    println!("-----------------------");
+    set2::challenge9();
     println!("-----------------------");
 }

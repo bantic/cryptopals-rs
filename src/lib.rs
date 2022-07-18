@@ -4,8 +4,10 @@ extern crate lazy_static;
 pub mod aes;
 pub mod letter_frequency;
 pub mod serializers;
-pub mod set1;
 pub mod xor;
+
+pub mod set1;
+pub mod set2;
 
 pub mod utils {
     use std::{fs::File, io::Read, path::Path};
