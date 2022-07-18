@@ -1,3 +1,7 @@
+use std::path::Path;
+
+use crate::utils::read_file_to_string;
+
 pub mod base64;
 
 pub trait Serialize {
@@ -14,6 +18,14 @@ pub fn from_hex(s: &str) -> Result<Vec<u8>, String> {
         digits.push(u8_from_hex_char(c)?);
     }
     Ok(digits.chunks(2).map(|c| (c[0] << 4) + c[1]).collect())
+}
+
+pub fn from_hex_lines(s: &str) -> Result<Vec<Vec<u8>>, String> {
+    s.lines().map(str::trim_end).map(from_hex).collect()
+}
+
+pub fn from_hex_lines_path(path: &Path) -> Result<Vec<Vec<u8>>, String> {
+    from_hex_lines(&read_file_to_string(path)?)
 }
 
 fn u8_from_hex_char(c: char) -> Result<u8, String> {

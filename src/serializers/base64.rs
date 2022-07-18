@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
+
+use crate::utils::read_file_to_string;
 
 // https://en.wikipedia.org/wiki/Base64#Base64_table_from_RFC_4648
 const ALPHABET: [char; 64] = [
@@ -191,4 +193,8 @@ fn test_to_base64() {
         &[0x6c, 0x69, 0x67, 0x68, 0x74, 0x20, 0x77, 0x6f, 0x72].to_base64(),
         "bGlnaHQgd29y"
     );
+}
+
+pub fn from_file(path: &Path) -> Result<Vec<u8>, String> {
+    from_base64(&read_file_to_string(path)?.replace('\n', ""))
 }

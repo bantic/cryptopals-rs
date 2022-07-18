@@ -1,7 +1,9 @@
+use std::path::Path;
+
 use crate::{
     aes::{aes_128_ecb_decrypt, has_repeating_block},
     letter_frequency::{self, break_repeating_key_xor, break_single_byte_xor, DecryptResult},
-    serializers::{base64::from_base64, from_hex, Serialize},
+    serializers::{from_hex, from_hex_lines_path, Serialize},
     xor::Xor,
 };
 
@@ -61,15 +63,11 @@ fn test_challenge3() {
 }
 
 fn solve_challenge4() -> Option<DecryptResult> {
-    let input = include_str!("./data/challenge4.txt");
+    let input = from_hex_lines_path(Path::new("data/challenge4.txt")).unwrap();
 
     input
-        .lines()
-        .map(str::trim_end)
-        .filter_map(|line| {
-            let bytes = from_hex(line).unwrap();
-            break_single_byte_xor(&bytes)
-        })
+        .iter()
+        .filter_map(|bytes| break_single_byte_xor(bytes))
         .min_by_key(|decrypt_result| decrypt_result.score)
 }
 
@@ -129,9 +127,7 @@ pub fn challenge5() {
 
 pub fn challenge6() -> Result<(), String> {
     println!("SET 1 CHALLENGE 6");
-    let chal_6_input = include_str!("./data/challenge6.txt");
-    let chal_6_input = chal_6_input.replace('\n', "");
-    let chal_6_input = crate::serializers::base64::from_base64(&chal_6_input)?;
+    let chal_6_input = crate::serializers::base64::from_file(Path::new("data/challenge6.txt"))?;
 
     if let Some(key) = break_repeating_key_xor(&chal_6_input) {
         println!("{}", std::str::from_utf8(&chal_6_input.xor(&key)).unwrap());
@@ -143,10 +139,10 @@ pub fn challenge6() -> Result<(), String> {
 
 #[test]
 fn test_challenge6() {
-    let chal_6_input = include_str!("./data/challenge6.txt");
-    let chal_6_input = chal_6_input.replace('\n', "");
-    let chal_6_input = crate::serializers::base64::from_base64(&chal_6_input).unwrap();
-    let expected = include_str!("./data/challenge6.actual.txt");
+    let chal_6_input =
+        crate::serializers::base64::from_file(Path::new("./data/challenge6.txt")).unwrap();
+    let expected =
+        crate::utils::read_file_to_string(Path::new("./data/challenge6.actual.txt")).unwrap();
     let key = break_repeating_key_xor(&chal_6_input);
     assert!(key.is_some());
     let key = key.unwrap();
@@ -160,8 +156,8 @@ fn test_challenge6() {
 pub fn challenge7() {
     println!("SET 1 CHALLENGE 7");
     let key = "YELLOW SUBMARINE".as_bytes();
-    let b64 = include_str!("./data/challenge7.txt").replace('\n', "");
-    let ciphertext = from_base64(&b64).unwrap();
+    let ciphertext =
+        crate::serializers::base64::from_file(Path::new("data/challenge7.txt")).unwrap();
     let plaintext = aes_128_ecb_decrypt(&ciphertext, key);
     println!("{}", String::from_utf8_lossy(&plaintext));
 }
@@ -169,21 +165,17 @@ pub fn challenge7() {
 #[test]
 fn test_challenge7() {
     let key = "YELLOW SUBMARINE".as_bytes();
-    let b64 = include_str!("./data/challenge7.txt").replace('\n', "");
-    let ciphertext = from_base64(&b64).unwrap();
+    let ciphertext =
+        crate::serializers::base64::from_file(Path::new("./data/challenge7.txt")).unwrap();
     let plaintext = aes_128_ecb_decrypt(&ciphertext, key);
-    let expected = include_bytes!("./data/challenge7.actual.txt");
+    let expected =
+        crate::utils::read_file_to_bytes(Path::new("./data/challenge7.actual.txt")).unwrap();
     assert_eq!(plaintext, expected);
 }
 
 pub fn challenge8() {
     println!("SET 1 CHALLENGE 8");
-    let ciphertexts = include_str!("./data/challenge8.txt")
-        .lines()
-        .map(|l| l.trim())
-        .map(from_hex)
-        .map(|r| r.unwrap())
-        .collect::<Vec<Vec<u8>>>();
+    let ciphertexts = from_hex_lines_path(Path::new("data/challenge8.txt")).unwrap();
     let repeat = ciphertexts
         .iter()
         .find(|&l| has_repeating_block(l, 16))
@@ -197,12 +189,7 @@ pub fn challenge8() {
 
 #[test]
 fn test_challenge8() {
-    let ciphertexts = include_str!("./data/challenge8.txt")
-        .lines()
-        .map(|l| l.trim())
-        .map(from_hex)
-        .map(|r| r.unwrap())
-        .collect::<Vec<Vec<u8>>>();
+    let ciphertexts = from_hex_lines_path(Path::new("data/challenge8.txt")).unwrap();
     let repeat = ciphertexts
         .iter()
         .find(|&l| has_repeating_block(l, 16))
