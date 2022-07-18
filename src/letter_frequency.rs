@@ -66,14 +66,12 @@ fn count_chars(bytes: &[u8]) -> HashMap<char, usize> {
 // compute mean-squared-error, see https://statisticsbyjim.com/regression/mean-squared-error-mse/
 fn compute_score(bytes: &[u8]) -> u32 {
     if !bytes.is_ascii() {
-        // dbg!("returning max, not ascii");
         return u32::MAX;
     }
     if bytes
         .iter()
         .any(|&b| (b.to_ascii_lowercase().is_ascii_control()) && b != b'\n')
     {
-        // dbg!("returning max, control bytes");
         return u32::MAX;
     }
     let counts = count_chars(bytes);
@@ -242,13 +240,11 @@ pub fn break_repeating_key_xor(input: &[u8]) -> Option<Vec<u8>> {
         }
         let mut key_bytes: Vec<u8> = Vec::new();
         for block in blocks {
-            dbg!(block.len());
             let res = break_single_byte_xor(&block).unwrap();
             if res.score == u32::MAX {
                 return None;
             }
             key_bytes.push(res.key);
-            dbg!(res.key, res.score);
         }
         Some(key_bytes)
     })

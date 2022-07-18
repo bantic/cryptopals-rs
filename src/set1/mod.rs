@@ -1,6 +1,5 @@
-use openssl::symm::{decrypt, Cipher};
-
 use crate::{
+    aes::{aes_128_ecb_decrypt, has_repeating_block},
     letter_frequency::{self, break_repeating_key_xor, break_single_byte_xor, DecryptResult},
     serializers::{base64::from_base64, from_hex, Serialize},
     xor::Xor,
@@ -147,7 +146,7 @@ fn test_challenge6() {
     let chal_6_input = include_str!("./data/challenge6.txt");
     let chal_6_input = chal_6_input.replace('\n', "");
     let chal_6_input = crate::serializers::base64::from_base64(&chal_6_input).unwrap();
-    let expected = include_str!("./data/challenge6_result.txt");
+    let expected = include_str!("./data/challenge6.actual.txt");
     let key = break_repeating_key_xor(&chal_6_input);
     assert!(key.is_some());
     let key = key.unwrap();
@@ -158,18 +157,13 @@ fn test_challenge6() {
     assert_eq!(&out, &expected);
 }
 
-fn aes_128_ecb_decrypt(ciphertext: &[u8], key: &[u8]) -> Vec<u8> {
-    decrypt(Cipher::aes_128_ecb(), key, None, ciphertext).unwrap()
-}
-
 pub fn challenge7() {
     println!("SET 1 CHALLENGE 7");
     let key = "YELLOW SUBMARINE".as_bytes();
     let b64 = include_str!("./data/challenge7.txt").replace('\n', "");
     let ciphertext = from_base64(&b64).unwrap();
     let plaintext = aes_128_ecb_decrypt(&ciphertext, key);
-    println!("{:?}", plaintext);
-    println!("{:?}", String::from_utf8_lossy(&plaintext));
+    println!("{}", String::from_utf8_lossy(&plaintext));
 }
 
 #[test]
@@ -182,22 +176,6 @@ fn test_challenge7() {
     assert_eq!(plaintext, expected);
 }
 
-fn has_repeating_block(data: &[u8], size: usize) -> bool {
-    if data.len() % size != 0 {
-        panic!("unexpected size of repeating block check");
-    }
-    let chunks = data.chunks(size).collect::<Vec<&[u8]>>();
-    let len = chunks.len();
-    for i in 0..len {
-        for j in (i + 1)..len {
-            if chunks[i] == chunks[j] {
-                return true;
-            }
-        }
-    }
-    false
-}
-
 pub fn challenge8() {
     println!("SET 1 CHALLENGE 8");
     let ciphertexts = include_str!("./data/challenge8.txt")
@@ -206,14 +184,14 @@ pub fn challenge8() {
         .map(from_hex)
         .map(|r| r.unwrap())
         .collect::<Vec<Vec<u8>>>();
-    for ciphertext in ciphertexts {
-        if has_repeating_block(&ciphertext, 16) {
-            println!(
-                "found one with repeats! {:?}: {}",
-                ciphertext,
-                ciphertext.to_hex()
-            );
-        }
+    let repeat = ciphertexts
+        .iter()
+        .find(|&l| has_repeating_block(l, 16))
+        .map(|l| l.to_hex());
+    if let Some(s) = repeat {
+        println!("Found line with repeating block: {}", s);
+    } else {
+        eprintln!("Failed");
     }
 }
 

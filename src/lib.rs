@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub mod aes;
 pub mod letter_frequency;
 pub mod serializers;
 pub mod set1;
