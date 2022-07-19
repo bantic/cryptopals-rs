@@ -198,3 +198,11 @@ fn test_to_base64() {
 pub fn from_file(path: &Path) -> Result<Vec<u8>, String> {
     from_base64(&read_file_to_string(path)?.replace('\n', ""))
 }
+
+pub fn from_file_lines(path: &Path) -> Result<Vec<Vec<u8>>, String> {
+    read_file_to_string(path)?
+        .lines()
+        .map(str::trim_end)
+        .map(from_base64)
+        .collect()
+}
