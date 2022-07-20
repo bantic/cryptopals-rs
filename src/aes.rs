@@ -1,7 +1,9 @@
 use crate::{xor::Xor, MyResult};
 use openssl::symm::{decrypt, encrypt, Cipher};
+use rand::Rng;
 use std::{error, fmt, iter::once};
 
+#[derive(PartialEq, Clone, Copy)]
 pub enum Mode {
     CBC,
     ECB,
@@ -42,6 +44,25 @@ impl Decrypt for [u8] {
             Mode::ECB => match iv {
                 Some(_) => Err(Box::new(AesError::IvNotAllowed)),
                 None => Ok(aes_128_ecb_decrypt(self, key)),
+            },
+        }
+    }
+}
+
+pub trait Encrypt {
+    fn encrypt(&self, mode: Mode, key: &[u8], iv: Option<&[u8]>) -> MyResult<Vec<u8>>;
+}
+
+impl Encrypt for [u8] {
+    fn encrypt(&self, mode: Mode, key: &[u8], iv: Option<&[u8]>) -> MyResult<Vec<u8>> {
+        match mode {
+            Mode::CBC => match iv {
+                Some(_) => encrypt(Cipher::aes_128_cbc(), key, iv, self).map_err(|e| e.into()),
+                None => Err(Box::new(AesError::IvRequired)),
+            },
+            Mode::ECB => match iv {
+                Some(_) => Err(Box::new(AesError::IvNotAllowed)),
+                None => encrypt(Cipher::aes_128_ecb(), key, None, self).map_err(|e| e.into()),
             },
         }
     }
@@ -162,4 +183,67 @@ fn aes_128_cbc_decrypt(ciphertext: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
 
     pkcs7_unpad_inplace(&mut plaintext, BLOCK_SIZE);
     plaintext
+}
+
+pub struct Oracle {
+    mode: Mode,
+    ciphertext: Vec<u8>,
+}
+
+const BLOCK_SIZE: usize = 16;
+
+fn random_bytes_range(min: usize, max: usize) -> Vec<u8> {
+    let mut rng = rand::thread_rng();
+    let len = rng.gen_range(min..(max + 1)) as usize;
+    random_bytes(len)
+}
+
+fn random_bytes(len: usize) -> Vec<u8> {
+    let mut rng = rand::thread_rng();
+    (0..len).map(|_| rng.gen()).collect()
+}
+
+impl Oracle {
+    pub fn new(input: &[u8]) -> MyResult<Self> {
+        let mode = if rand::random() { Mode::CBC } else { Mode::ECB };
+        let key = random_bytes(BLOCK_SIZE);
+        let mut plaintext = random_bytes_range(5, 10);
+        plaintext.extend_from_slice(input);
+        plaintext.extend_from_slice(&random_bytes_range(5, 10));
+
+        let ciphertext = match mode {
+            Mode::CBC => {
+                plaintext.encrypt(mode, &key, Some(random_bytes(BLOCK_SIZE).as_slice()))?
+            }
+            Mode::ECB => plaintext.encrypt(mode, &key, None)?,
+        };
+
+        Ok(Oracle { mode, ciphertext })
+    }
+
+    pub fn ciphertext(&self) -> &[u8] {
+        &self.ciphertext
+    }
+
+    pub fn is_cbc(&self) -> bool {
+        self.mode == Mode::CBC
+    }
+
+    pub fn is_ecb(&self) -> bool {
+        self.mode == Mode::ECB
+    }
+
+    pub fn verify(&self, is_ecb: bool) -> MyResult<()> {
+        match (is_ecb, self.mode == Mode::ECB) {
+            (true, true) => Ok(()),
+            (false, true) => Err("Incorrectly detected CBC".into()),
+            (false, false) => Ok(()),
+            (true, false) => Err("Incorrectly detected ECB".into()),
+        }
+    }
+}
+
+pub fn detect_ecb11(ciphertext: &[u8]) -> bool {
+    let blocks: Vec<&[u8]> = ciphertext.chunks(BLOCK_SIZE).skip(1).take(2).collect();
+    blocks[0] == blocks[1]
 }

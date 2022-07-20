@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    aes::{pkcs7_pad, Decrypt, Mode},
+    aes::{detect_ecb11, pkcs7_pad, Decrypt, Mode, Oracle},
     serializers::base64,
     MyResult,
 };
@@ -39,5 +39,27 @@ fn test_challenge10() -> MyResult<()> {
     let result = String::from_utf8_lossy(&result);
     let expected = read_file_to_string(Path::new("data/challenge10.actual.txt"))?;
     assert_eq!(result, expected);
+    Ok(())
+}
+
+pub fn challenge11() -> MyResult<()> {
+    println!("SET 2 CHALLENGE 11");
+    let input = [0; 16 * 3];
+    let oracle = Oracle::new(&input)?;
+    let ciphertext = oracle.ciphertext();
+    let is_ecb = detect_ecb11(ciphertext);
+    oracle.verify(is_ecb)?;
+    Ok(())
+}
+
+#[test]
+fn test_challenge11() -> MyResult<()> {
+    let input = [0; 16 * 3];
+    for _ in 0..50 {
+        let oracle = Oracle::new(&input)?;
+        let ciphertext = oracle.ciphertext();
+        let is_ecb = detect_ecb11(ciphertext);
+        oracle.verify(is_ecb)?;
+    }
     Ok(())
 }

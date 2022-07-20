@@ -23,5 +23,7 @@ fn main() -> MyResult<()> {
     println!("-----------------------");
     set2::challenge10()?;
     println!("-----------------------");
+    set2::challenge11()?;
+    println!("-----------------------");
     Ok(())
 }
