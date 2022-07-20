@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use crate::utils::read_file_to_string;
+use crate::{utils::read_file_to_string, MyResult};
 
 // https://en.wikipedia.org/wiki/Base64#Base64_table_from_RFC_4648
 const ALPHABET: [char; 64] = [
@@ -71,7 +71,7 @@ fn bytes_from_base64_chunk(bytes: &[u8]) -> Vec<u8> {
     }
 }
 
-pub fn from_base64(s: &str) -> Result<Vec<u8>, String> {
+pub fn from_base64(s: &str) -> MyResult<Vec<u8>> {
     if !s.is_ascii() {
         return Err("Base64 string must be ascii".into());
     }
@@ -80,7 +80,8 @@ pub fn from_base64(s: &str) -> Result<Vec<u8>, String> {
         return Err(format!(
             "Base64 string len must be divisible by 4, but got len {}",
             s.len()
-        ));
+        )
+        .into());
     }
 
     Ok(s.as_bytes()
@@ -132,7 +133,7 @@ pub fn to_base64(bytes: &[u8]) -> String {
 }
 
 #[test]
-fn test_from_base64() -> Result<(), String> {
+fn test_from_base64() -> MyResult<()> {
     assert_eq!(from_base64("TWFu")?, [0x4d, 0x61, 0x6e]);
     assert_eq!(from_base64("TWE=")?, [0x4d, 0x61]);
     assert_eq!(from_base64("TQ==")?, [0x4d]);
@@ -140,7 +141,7 @@ fn test_from_base64() -> Result<(), String> {
 }
 
 #[test]
-fn test_to_from_base64() -> Result<(), String> {
+fn test_to_from_base64() -> MyResult<()> {
     use crate::serializers::Serialize;
     use rand::random;
 
@@ -195,11 +196,11 @@ fn test_to_base64() {
     );
 }
 
-pub fn from_file(path: &Path) -> Result<Vec<u8>, String> {
+pub fn from_file(path: &Path) -> MyResult<Vec<u8>> {
     from_base64(&read_file_to_string(path)?.replace('\n', ""))
 }
 
-pub fn from_file_lines(path: &Path) -> Result<Vec<Vec<u8>>, String> {
+pub fn from_file_lines(path: &Path) -> MyResult<Vec<Vec<u8>>> {
     read_file_to_string(path)?
         .lines()
         .map(str::trim_end)

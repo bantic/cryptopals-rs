@@ -5,6 +5,7 @@ use crate::{
     letter_frequency::{self, break_repeating_key_xor, break_single_byte_xor, DecryptResult},
     serializers::{from_hex, from_hex_lines_path, Serialize},
     xor::Xor,
+    MyResult,
 };
 
 pub const CHALLENGE_3_INPUT: &str =
@@ -125,7 +126,7 @@ pub fn challenge5() {
     dbg!(solve_challenge5() == CHALLENGE_5_EXPECTED);
 }
 
-pub fn challenge6() -> Result<(), String> {
+pub fn challenge6() -> MyResult<()> {
     println!("SET 1 CHALLENGE 6");
     let chal_6_input = crate::serializers::base64::from_file(Path::new("data/challenge6.txt"))?;
 

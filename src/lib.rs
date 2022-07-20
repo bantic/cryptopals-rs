@@ -9,36 +9,23 @@ pub mod xor;
 pub mod set1;
 pub mod set2;
 
+pub type MyResult<T> = Result<T, Box<dyn std::error::Error>>;
+
 pub mod utils {
+    use crate::MyResult;
     use std::{fs::File, io::Read, path::Path};
 
-    pub fn read_file_to_string(path: &Path) -> Result<String, String> {
-        match File::open(path) {
-            Ok(mut f) => {
-                let mut buf: String = String::new();
-                match f.read_to_string(&mut buf) {
-                    Ok(_) => Ok(buf),
-                    Err(e) => {
-                        return Err(format!("Failed to read_to_string {}:{}", path.display(), e))
-                    }
-                }
-            }
-            Err(e) => return Err(format!("Failed to open path {}: {}", path.display(), e)),
-        }
+    pub fn read_file_to_string(path: &Path) -> MyResult<String> {
+        let mut f = File::open(path)?;
+        let mut buf = String::new();
+        f.read_to_string(&mut buf)?;
+        Ok(buf)
     }
 
-    pub fn read_file_to_bytes(path: &Path) -> Result<Vec<u8>, String> {
-        match File::open(path) {
-            Ok(mut f) => {
-                let mut buf: Vec<u8> = Vec::new();
-                match f.read_to_end(&mut buf) {
-                    Ok(_) => Ok(buf),
-                    Err(e) => {
-                        return Err(format!("Failed to read_to_bytes {}:{}", path.display(), e))
-                    }
-                }
-            }
-            Err(e) => return Err(format!("Failed to open path {}: {}", path.display(), e)),
-        }
+    pub fn read_file_to_bytes(path: &Path) -> MyResult<Vec<u8>> {
+        let mut f = File::open(path)?;
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf)?;
+        Ok(buf)
     }
 }
