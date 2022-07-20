@@ -1,9 +1,8 @@
 use std::path::Path;
 
 use crate::{
-    aes::{aes_128_cbc_decrypt, pkcs7_pad},
+    aes::{pkcs7_pad, Decrypt, Mode},
     serializers::base64,
-    utils::read_file_to_string,
     MyResult,
 };
 
@@ -24,7 +23,7 @@ pub fn challenge10() -> MyResult<()> {
     let ciphertext = base64::from_file(Path::new("data/challenge10.txt"))?;
     let iv = &vec![0; 16];
     let key = b"YELLOW SUBMARINE";
-    let result = aes_128_cbc_decrypt(&ciphertext, key, iv);
+    let result = ciphertext.decrypt(Mode::CBC, key, Some(iv))?;
     println!("{:?}", result);
     println!("{}", String::from_utf8_lossy(&result));
     Ok(())
@@ -32,10 +31,11 @@ pub fn challenge10() -> MyResult<()> {
 
 #[test]
 fn test_challenge10() -> MyResult<()> {
+    use crate::utils::read_file_to_string;
     let ciphertext = base64::from_file(Path::new("data/challenge10.txt"))?;
     let iv = &vec![0; 16];
     let key = b"YELLOW SUBMARINE";
-    let result = aes_128_cbc_decrypt(&ciphertext, key, iv);
+    let result = ciphertext.decrypt(Mode::CBC, key, Some(iv))?;
     let result = String::from_utf8_lossy(&result);
     let expected = read_file_to_string(Path::new("data/challenge10.actual.txt"))?;
     assert_eq!(result, expected);

@@ -1,6 +1,51 @@
-use crate::xor::Xor;
+use crate::{xor::Xor, MyResult};
 use openssl::symm::{decrypt, encrypt, Cipher};
-use std::iter::once;
+use std::{error, fmt, iter::once};
+
+pub enum Mode {
+    CBC,
+    ECB,
+}
+
+#[derive(Debug)]
+enum AesError {
+    IvNotAllowed,
+    IvRequired,
+}
+
+impl error::Error for AesError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        None
+    }
+}
+
+impl fmt::Display for AesError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AesError::IvNotAllowed => write!(f, "iv not allowed in this mode"),
+            AesError::IvRequired => write!(f, "iv must be supplied in this mode"),
+        }
+    }
+}
+
+pub trait Decrypt {
+    fn decrypt(&self, mode: Mode, key: &[u8], iv: Option<&[u8]>) -> MyResult<Vec<u8>>;
+}
+
+impl Decrypt for [u8] {
+    fn decrypt(&self, mode: Mode, key: &[u8], iv: Option<&[u8]>) -> MyResult<Vec<u8>> {
+        match mode {
+            Mode::CBC => match iv {
+                Some(iv) => Ok(aes_128_cbc_decrypt(self, key, iv)),
+                None => Err(Box::new(AesError::IvRequired)),
+            },
+            Mode::ECB => match iv {
+                Some(_) => Err(Box::new(AesError::IvNotAllowed)),
+                None => Ok(aes_128_ecb_decrypt(self, key)),
+            },
+        }
+    }
+}
 
 pub fn has_repeating_block(data: &[u8], size: usize) -> bool {
     if data.len() % size != 0 {
@@ -18,7 +63,7 @@ pub fn has_repeating_block(data: &[u8], size: usize) -> bool {
     false
 }
 
-pub fn aes_128_ecb_decrypt(ciphertext: &[u8], key: &[u8]) -> Vec<u8> {
+fn aes_128_ecb_decrypt(ciphertext: &[u8], key: &[u8]) -> Vec<u8> {
     decrypt(Cipher::aes_128_ecb(), key, None, ciphertext).unwrap()
 }
 
@@ -55,6 +100,7 @@ fn test_pkcs7_pad() {
     assert_eq!(block, expected);
 }
 
+#[cfg(test)]
 fn pkcs7_unpad(input: &[u8], block_size: usize) -> Vec<u8> {
     let mut output = input.to_vec();
     pkcs7_unpad_inplace(&mut output, block_size);
@@ -101,7 +147,7 @@ fn aes_128_decrypt_block(block: &[u8], key: &[u8], block_size: usize) -> Vec<u8>
     decrypt(Cipher::aes_128_ecb(), key, None, &input).unwrap()
 }
 
-pub fn aes_128_cbc_decrypt(ciphertext: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
+fn aes_128_cbc_decrypt(ciphertext: &[u8], key: &[u8], iv: &[u8]) -> Vec<u8> {
     const BLOCK_SIZE: usize = 16;
     if ciphertext.len() % BLOCK_SIZE != 0 {
         panic!("ciphertext is not multiple of block size");

@@ -1,12 +1,11 @@
-use std::path::Path;
-
 use crate::{
-    aes::{aes_128_ecb_decrypt, has_repeating_block},
+    aes::{has_repeating_block, Decrypt, Mode},
     letter_frequency::{self, break_repeating_key_xor, break_single_byte_xor, DecryptResult},
-    serializers::{from_hex, from_hex_lines_path, Serialize},
+    serializers::{base64, from_hex, from_hex_lines_path, Serialize},
     xor::Xor,
     MyResult,
 };
+use std::path::Path;
 
 pub const CHALLENGE_3_INPUT: &str =
     "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736";
@@ -154,29 +153,29 @@ fn test_challenge6() {
     assert_eq!(&out, &expected);
 }
 
-pub fn challenge7() {
+pub fn challenge7() -> MyResult<()> {
     println!("SET 1 CHALLENGE 7");
     let key = "YELLOW SUBMARINE".as_bytes();
-    let ciphertext =
-        crate::serializers::base64::from_file(Path::new("data/challenge7.txt")).unwrap();
-    let plaintext = aes_128_ecb_decrypt(&ciphertext, key);
-    println!("{}", String::from_utf8_lossy(&plaintext));
+    let ciphertext = base64::from_file(Path::new("data/challenge7.txt"))?;
+    let plaintext = ciphertext.decrypt(Mode::ECB, key, None)?;
+    println!("{}", String::from_utf8(plaintext)?);
+    Ok(())
 }
 
 #[test]
-fn test_challenge7() {
+fn test_challenge7() -> MyResult<()> {
     let key = "YELLOW SUBMARINE".as_bytes();
-    let ciphertext =
-        crate::serializers::base64::from_file(Path::new("./data/challenge7.txt")).unwrap();
-    let plaintext = aes_128_ecb_decrypt(&ciphertext, key);
-    let expected =
-        crate::utils::read_file_to_bytes(Path::new("./data/challenge7.actual.txt")).unwrap();
+    let ciphertext = base64::from_file(Path::new("data/challenge7.txt"))?;
+    let plaintext = ciphertext.decrypt(Mode::ECB, key, None)?;
+    let plaintext = String::from_utf8(plaintext)?;
+    let expected = crate::utils::read_file_to_string(Path::new("./data/challenge7.actual.txt"))?;
     assert_eq!(plaintext, expected);
+    Ok(())
 }
 
-pub fn challenge8() {
+pub fn challenge8() -> MyResult<()> {
     println!("SET 1 CHALLENGE 8");
-    let ciphertexts = from_hex_lines_path(Path::new("data/challenge8.txt")).unwrap();
+    let ciphertexts = from_hex_lines_path(Path::new("data/challenge8.txt"))?;
     let repeat = ciphertexts
         .iter()
         .find(|&l| has_repeating_block(l, 16))
@@ -186,14 +185,16 @@ pub fn challenge8() {
     } else {
         eprintln!("Failed");
     }
+    Ok(())
 }
 
 #[test]
-fn test_challenge8() {
-    let ciphertexts = from_hex_lines_path(Path::new("data/challenge8.txt")).unwrap();
+fn test_challenge8() -> MyResult<()> {
+    let ciphertexts = from_hex_lines_path(Path::new("data/challenge8.txt"))?;
     let repeat = ciphertexts
         .iter()
         .find(|&l| has_repeating_block(l, 16))
         .map(|l| l.to_hex());
     assert_eq!(repeat, Some("d880619740a8a19b7840a8a31c810a3d08649af70dc06f4fd5d2d69c744cd283e2dd052f6b641dbf9d11b0348542bb5708649af70dc06f4fd5d2d69c744cd2839475c9dfdbc1d46597949d9c7e82bf5a08649af70dc06f4fd5d2d69c744cd28397a93eab8d6aecd566489154789a6b0308649af70dc06f4fd5d2d69c744cd283d403180c98c8f6db1f2a3f9c4040deb0ab51b29933f2c123c58386b06fba186a".into()));
+    Ok(())
 }
